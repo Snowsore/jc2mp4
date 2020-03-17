@@ -2,7 +2,7 @@
 # Inspire by carykh
 # Rewrite By Snowsore
 
-# Jumpcutter2
+# jc2mp4
 
 # Imports
 from scipy.io import wavfile
@@ -15,17 +15,20 @@ import time
 import shutil
 import random
 
+import timeit
+
 #
 # Voice detection
 #
 
 # Preper
+start = timeit.default_timer()
 ifile = sys.argv[1]
 ofile = sys.argv[2]
 os.mkdir('./TEMP')
 
 # Extract audio
-cmd = 'ffmpeg -loglevel panic -i ' + ifile + ' ./TEMP/temp.wav'
+cmd = 'ffmpeg -loglevel panic -i {} ./TEMP/temp.wav'.format(ifile)
 subprocess.call(cmd, shell = True)
 
 # Get data
@@ -34,20 +37,20 @@ sampleRate = wav[0]
 data = wav[1]
 
 # Sensetive
-mask = (data[:,0] > 500) | (data[:,0] < -500)
+mask = (data[:,0] > 800) | (data[:,0] < -800)
 
 # Dum filtering
 dynamic = 0
 release = 0
 for i in range(100):
     dynamic += 2 ** i;
-    if dynamic > 0.005 * sampleRate:
+    if dynamic > 0.06 * sampleRate:
         for l in range(i):
             mask = np.logical_or(mask, np.roll(mask, -2 ** l))
         break
 for i in range(100):
     release += 2 ** i;
-    if release > 0.1 * sampleRate:
+    if release > 0.06 * sampleRate:
         for l in range(i):
             mask = np.logical_or(mask, np.roll(mask, 2 ** l))
         break
@@ -69,9 +72,12 @@ cp = []
 for i in range(len(flat) - 1):
     if i % 2:
         continue
-    cmd = 'ffmpeg -loglevel panic -ss {} -i {} -to {} -copyts ./TEMP/clip{}.mp4'.format(flat[i], ifile, flat[i + 1], i)
+    if flat[i + 1] - flat[i] < 0.1:
+        continue
 
+    cmd = 'ffmpeg -loglevel panic -ss {} -i {} -t {} ./TEMP/clip{}.mp4'.format(flat[i], ifile, flat[i + 1] - flat[i], i)
     fstr += "file './clip" + str(i) + ".mp4'\n"
+    
     cp.append(subprocess.Popen(cmd, shell = True))
     print('\r{0:.0%}'.format(i / len(flat)), end="")
     while len(cp) > 8:
@@ -88,8 +94,13 @@ f.write(fstr)
 f.close()
 
 # Merge video
-cmd = 'ffmpeg -loglevel panic -f concat -safe 0 -i ./TEMP/concat.txt -c:v h264_nvenc -filter_complex "setpts={}*PTS;atempo={}" -async 1 {}'.format(1/1.5, 1.5, ofile)
+# cmd = 'ffmpeg -loglevel panic -f concat -safe 0 -i ./TEMP/concat.txt -c:v h264_nvenc -filter_complex "setpts=PTS/{};atempo={}" -async 1 {}'.format(1.5, 1.5, ofile)
+cmd = 'ffmpeg -loglevel panic -f concat -safe 0 -i ./TEMP/concat.txt -c:v h264_nvenc -filter_complex "setpts=PTS/{};loudnorm,atempo={}" -async 1 -b:v 400k -c:a aac -b:a 160k -ar 44100 {}'.format(1.5, 1.5, ofile)
 subprocess.call(cmd, shell = True)
 
 # Delete temp file
 shutil.rmtree('./TEMP')
+
+# Show time spend
+stop = timeit.default_timer()
+print('Time: ', stop - start)  
