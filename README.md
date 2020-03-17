@@ -2,6 +2,8 @@
 Idea from https://github.com/carykh/jumpcutter
 
 原程序太慢了，我重写了，更改了输出的方式
+为了效率直接跳过无声部分，音频爆破严重
+够我自己用了
 
 The original program is too slow for my machine
 So I rewrite the conversion method
