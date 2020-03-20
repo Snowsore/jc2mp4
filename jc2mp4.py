@@ -28,39 +28,51 @@ ofile = sys.argv[2]
 os.mkdir('./TEMP')
 
 # Extract audio
-cmd = 'ffmpeg -loglevel panic -i {} ./TEMP/temp.wav'.format(ifile)
+cmd = 'ffmpeg -loglevel panic -i "{}" ./TEMP/temp.wav'.format(ifile)
 subprocess.call(cmd, shell = True)
 
 # Get data
 wav = wavfile.read('./TEMP/temp.wav')
-sampleRate = wav[0]
+sample_rate = wav[0]
 data = wav[1]
 
 # Sensetive
-mask = (data[:,0] > 800) | (data[:,0] < -800)
+mask = (data[:,0] > 500) | (data[:,0] < -500)
 
 # Dum filtering
 dynamic = 0
 release = 0
 for i in range(100):
-    dynamic += 2 ** i;
-    if dynamic > 0.06 * sampleRate:
+    if dynamic > sample_rate / 30:
         for l in range(i):
             mask = np.logical_or(mask, np.roll(mask, -2 ** l))
         break
+    dynamic += 2 ** i;
+
 for i in range(100):
-    release += 2 ** i;
-    if release > 0.06 * sampleRate:
+    if release > sample_rate / 30:
         for l in range(i):
             mask = np.logical_or(mask, np.roll(mask, 2 ** l))
         break
+    release += 2 ** i;
+
+# Output audio
+wavfile.write('./TEMP/audio.wav', sample_rate, data[~np.array(mask)])
 
 # Output list
 mask = np.insert(mask, 0, 0)
 mask = np.append(mask, 0)
-flat = np.flatnonzero(np.diff(mask))
-flat = flat / sampleRate
-print("{} div {}".format(len(flat) / 2, ifile))
+flat = np.flatnonzero(np.diff(mask)) / sample_rate
+
+audio_start = flat[0::2]
+audio_stop = flat[1::2]
+duration_mask = (audio_stop - audio_start) > 0.2
+
+audio_start = audio_start[duration_mask]
+audio_stop = audio_stop[duration_mask]
+audio_duration = audio_stop - audio_start
+
+print("{} div {}".format(len(audio_start), ifile))
 
 #
 # Render video
@@ -69,22 +81,19 @@ print("{} div {}".format(len(flat) / 2, ifile))
 # Split video by list(add filter)
 fstr = ''
 cp = []
-for i in range(len(flat) - 1):
-    if i % 2:
-        continue
-    if flat[i + 1] - flat[i] < 0.1:
-        continue
+for i in range(len(audio_start)):
 
-    cmd = 'ffmpeg -loglevel panic -ss {} -i {} -t {} ./TEMP/clip{}.mp4'.format(flat[i], ifile, flat[i + 1] - flat[i], i)
-    fstr += "file './clip" + str(i) + ".mp4'\n"
-    
-    cp.append(subprocess.Popen(cmd, shell = True))
-    print('\r{0:.0%}'.format(i / len(flat)), end="")
-    while len(cp) > 8:
+    cmd = 'ffmpeg -loglevel panic -ss {} -i "{}" -t {} ./TEMP/clip{}.mov'.format(audio_start[i], ifile, audio_duration[i], i)
+    fstr += "file './clip" + str(i) + ".mov'\n"
+
+    while len(cp) > 7:
         for p in cp:
             if p.poll() is not None:
                 cp.remove(p)
         time.sleep(0.01)
+        
+    cp.append(subprocess.Popen(cmd, shell = True))
+    print('\r{0:.0%}'.format(i / len(audio_start)), end="")
 for p in cp:
     p.wait()
 
@@ -94,9 +103,8 @@ f.write(fstr)
 f.close()
 
 # Merge video
-# cmd = 'ffmpeg -loglevel panic -f concat -safe 0 -i ./TEMP/concat.txt -c:v h264_nvenc -filter_complex "setpts=PTS/{};atempo={}" -async 1 {}'.format(1.5, 1.5, ofile)
-cmd = 'ffmpeg -loglevel panic -f concat -safe 0 -i ./TEMP/concat.txt -c:v h264_nvenc -filter_complex "setpts=PTS/{};loudnorm,atempo={}" -async 1 -b:v 400k -c:a aac -b:a 160k -ar 44100 {}'.format(1.5, 1.5, ofile)
-subprocess.call(cmd, shell = True)
+cmd = 'ffmpeg -loglevel panic -f concat -safe 0 -i ./TEMP/concat.txt "{}"'.format(ofile)
+subprocess.call(cmd, shell = True)  
 
 # Delete temp file
 shutil.rmtree('./TEMP')
