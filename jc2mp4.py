@@ -37,20 +37,20 @@ sample_rate = wav[0]
 data = wav[1]
 
 # Sensetive
-mask = (data[:,0] > 500) | (data[:,0] < -500)
+mask = (data[:,0] > 1000) | (data[:,0] < -1000)
 
 # Dum filtering
 dynamic = 0
 release = 0
 for i in range(100):
-    if dynamic > sample_rate / 30:
+    if dynamic > sample_rate / 60:
         for l in range(i):
             mask = np.logical_or(mask, np.roll(mask, -2 ** l))
         break
     dynamic += 2 ** i;
 
 for i in range(100):
-    if release > sample_rate / 30:
+    if release > sample_rate / 60:
         for l in range(i):
             mask = np.logical_or(mask, np.roll(mask, 2 ** l))
         break
@@ -82,7 +82,6 @@ print("{} div {}".format(len(audio_start), ifile))
 fstr = ''
 cp = []
 for i in range(len(audio_start)):
-
     cmd = 'ffmpeg -loglevel panic -ss {} -i "{}" -t {} ./TEMP/clip{}.mov'.format(audio_start[i], ifile, audio_duration[i], i)
     fstr += "file './clip" + str(i) + ".mov'\n"
 
