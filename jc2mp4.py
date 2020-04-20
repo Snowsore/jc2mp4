@@ -13,7 +13,6 @@ import subprocess
 import os
 import time
 import shutil
-import random
 
 import timeit
 
@@ -25,6 +24,7 @@ import timeit
 start = timeit.default_timer()
 ifile = sys.argv[1]
 ofile = sys.argv[2]
+sensitivity = sys.argv[3]
 os.mkdir('./TEMP')
 
 # Extract audio
@@ -37,7 +37,7 @@ sample_rate = wav[0]
 data = wav[1]
 
 # Sensetive
-mask = (data[:,0] > 1000) | (data[:,0] < -1000)
+mask = (data[:,0] > sensitivity) | (data[:,0] < -sensitivity)
 
 # Dum filtering
 dynamic = 0
