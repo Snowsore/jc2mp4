@@ -1,6 +1,7 @@
 # jumpcutter
 Idea from https://github.com/carykh/jumpcutter
 
+python3 ./jc2mp4 [input] [output] [sensitivity]
 原程序太慢了，我重写了，更改了输出的方式。
 为了效率直接跳过无声部分，音频爆破严重。
 够我自己用了。
