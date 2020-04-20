@@ -24,7 +24,7 @@ import timeit
 start = timeit.default_timer()
 ifile = sys.argv[1]
 ofile = sys.argv[2]
-sensitivity = sys.argv[3]
+sensitivity = int(sys.argv[3])
 os.mkdir('./TEMP')
 
 # Extract audio
